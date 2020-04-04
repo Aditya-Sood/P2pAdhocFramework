@@ -118,6 +118,43 @@ public class WifiDirectManager
         });
     }
 
+    public void addMessage(final String message) {
+        manager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
+            @Override
+            public void onGroupInfoAvailable(WifiP2pGroup group) {
+                if(group != null) {
+//                    Toast.makeText(activity, "Group info available\nSSID:"+group.getNetworkName()+"\nPassphrase:"+group.getPassphrase()
+//                            +"\nMAC:\nConnectivity Status:", Toast.LENGTH_LONG).show();
+
+                    //Group is ready -> add to a wifip2pdnsSdserviceinfo
+
+                    JSONObject serviceInfoJson;
+                    String serviceInfoSerialised = "";
+                    try {
+                        serviceInfoJson = new JSONObject("{ \"ssid\":\""+ group.getNetworkName() +
+                                "\", \"passphrase\":\"" + group.getPassphrase() +"\", \"message\":\"" + message + "\"}");
+                        serviceInfoSerialised = serviceInfoJson.toString();
+
+                        Log.d(WifiDirectManager.TAG, "Self group info: " + serviceInfoSerialised);
+                    } catch (JSONException e) {
+                        Log.e(WifiDirectManager.TAG, e.getMessage());
+                    }
+
+                    Map<String, String> serviceInfoMap = new HashMap<String, String>();
+                    serviceInfoMap.put("details_json", serviceInfoSerialised);
+                    WifiP2pDnsSdServiceInfo serviceInfo = WifiP2pDnsSdServiceInfo.newInstance("gandalfTestInstance-" + group.getNetworkName(), "_bonjour._tcp", serviceInfoMap);
+
+                    WifiDirectManager.this.addLocalService(serviceInfo);
+                }
+                else {
+                    Toast.makeText(activity, "Can't add message, group not formed yet", Toast.LENGTH_LONG).show();
+                    Log.d(WifiDirectManager.TAG, "Can't add message, group not formed yet");
+                }
+
+            }
+        });
+    }
+
     public void addLocalService(final WifiP2pServiceInfo servInfo) {
         manager.addLocalService(channel, servInfo, new WifiP2pManager.ActionListener() {
             @Override
@@ -176,6 +213,9 @@ public class WifiDirectManager
             @Override
             public void onFailure(int reason) {
                 Log.d(WifiDirectManager.TAG, "Failed to initiate service discover service - " + reason);
+                if(reason == 3) {
+                    Toast.makeText(activity, "Unresponsive OS error, restart the app", Toast.LENGTH_LONG).show();
+                }
             }
         });
     }
@@ -242,7 +282,7 @@ public class WifiDirectManager
 //            callbacks.onConnectionToPeersLost();
 //        }
 
-        manager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
+        /*manager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
             @Override
             public void onGroupInfoAvailable(WifiP2pGroup group) {
                 if(group != null) {
@@ -274,7 +314,10 @@ public class WifiDirectManager
                 }
 
             }
-        });
+        });*/
+
+
+        Log.d(WifiDirectManager.TAG, "P2p Connnection Changed: isConnected " + isConnected);
     }
 
     @Override

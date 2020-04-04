@@ -11,6 +11,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -51,6 +53,16 @@ public class MainActivity extends AppCompatActivity implements
             @Override
             public void onClick(View v) {
                 wifiDirectManager.discoverDnsServices();
+            }
+        });
+
+        Button btnAddServ = findViewById(R.id.btn_add_serv);
+        final EditText edtTextAddMssg = findViewById(R.id.edt_txt_message);
+        btnAddServ.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+//                Toast.makeText(MainActivity.this, edtTextAddMssg.getText(), Toast.LENGTH_SHORT).show();
+                wifiDirectManager.addMessage(edtTextAddMssg.getText().toString());
             }
         });
 
