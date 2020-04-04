@@ -62,6 +62,8 @@ public class WifiDirectManager
 
     private WifiP2pInfo groupInfo; // Corresponds to P2P group formed between the two devices
 
+    private ArrayList<WifiP2pDnsSdServiceInfo> listCurrentBroadcasts = new ArrayList<>();
+
     public WifiDirectManager(@NonNull Activity activity) {
         this.activity = activity;
         this.callbacks = (Callbacks) activity;
@@ -127,23 +129,8 @@ public class WifiDirectManager
 //                            +"\nMAC:\nConnectivity Status:", Toast.LENGTH_LONG).show();
 
                     //Group is ready -> add to a wifip2pdnsSdserviceinfo
-
-                    JSONObject serviceInfoJson;
-                    String serviceInfoSerialised = "";
-                    try {
-                        serviceInfoJson = new JSONObject("{ \"ssid\":\""+ group.getNetworkName() +
-                                "\", \"passphrase\":\"" + group.getPassphrase() +"\", \"message\":\"" + message + "\"}");
-                        serviceInfoSerialised = serviceInfoJson.toString();
-
-                        Log.d(WifiDirectManager.TAG, "Self group info: " + serviceInfoSerialised);
-                    } catch (JSONException e) {
-                        Log.e(WifiDirectManager.TAG, e.getMessage());
-                    }
-
-                    Map<String, String> serviceInfoMap = new HashMap<String, String>();
-                    serviceInfoMap.put("details_json", serviceInfoSerialised);
-                    WifiP2pDnsSdServiceInfo serviceInfo = WifiP2pDnsSdServiceInfo.newInstance("gandalfTestInstance-" + group.getNetworkName(), "_bonjour._tcp", serviceInfoMap);
-
+                    WifiP2pDnsSdServiceInfo serviceInfo = getServiceInfo(group, message);
+                    listCurrentBroadcasts.add(serviceInfo);
                     WifiDirectManager.this.addLocalService(serviceInfo);
                 }
                 else {
@@ -155,23 +142,61 @@ public class WifiDirectManager
         });
     }
 
+    public WifiP2pDnsSdServiceInfo getServiceInfo(WifiP2pGroup group, String message) {
+        JSONObject serviceInfoJson;
+        String serviceInfoSerialised = "";
+        try {
+            serviceInfoJson = new JSONObject("{ \"ssid\":\""+ group.getNetworkName() +
+                    "\", \"passphrase\":\"" + group.getPassphrase() +"\", \"message\":\"" + message + "\"}");
+            serviceInfoSerialised = serviceInfoJson.toString();
+
+            Log.d(WifiDirectManager.TAG, "Self group info: " + serviceInfoSerialised);
+        } catch (JSONException e) {
+            Log.e(WifiDirectManager.TAG, e.getMessage());
+        }
+
+        Map<String, String> serviceInfoMap = new HashMap<String, String>();
+        serviceInfoMap.put("details_json", serviceInfoSerialised);
+        WifiP2pDnsSdServiceInfo serviceInfo = WifiP2pDnsSdServiceInfo.newInstance("gandalfTestInstance-" + group.getNetworkName(), "_bonjour._tcp", serviceInfoMap);
+
+        return serviceInfo;
+    }
+
     public void addLocalService(final WifiP2pServiceInfo servInfo) {
         manager.addLocalService(channel, servInfo, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() {
-                Log.d(WifiDirectManager.TAG, "Added service");
+                Log.d(WifiDirectManager.TAG, "Added service " + servInfo.toString());
                 Toast.makeText(activity, "Added local service - " + servInfo.toString(), Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onFailure(int reason) {
-                Log.d(WifiDirectManager.TAG, "Failed to add service");
+                Log.d(WifiDirectManager.TAG, "Failed to add service " + servInfo.toString());
                 Toast.makeText(activity, "Failed to add service", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    /*public void unregisterLocalService()*/
+    public void removeAllMessages(){
+        for(WifiP2pDnsSdServiceInfo serviceInfo : listCurrentBroadcasts) {
+            removeLocalService(serviceInfo);
+        }
+    }
+
+    public void removeLocalService(final WifiP2pServiceInfo servInfo) {
+        manager.removeLocalService(channel, servInfo, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                Log.d(WifiDirectManager.TAG, "Removed service " + servInfo.toString());
+            }
+
+            @Override
+            public void onFailure(int reason) {
+                Log.d(WifiDirectManager.TAG, "Failed to remove service " + servInfo.toString());
+            }
+        });
+    }
 
     public void setDnsSdServiceResponseListener() {
         manager.setDnsSdResponseListeners(channel, new WifiP2pManager.DnsSdServiceResponseListener() {
@@ -188,6 +213,8 @@ public class WifiDirectManager
                     serviceInfoJson = new JSONObject(txtRecordMap.get("details_json"));
                     
                     Log.d(WifiDirectManager.TAG, "Received JSON: " + txtRecordMap.get("details_json"));
+
+                    callbacks.addReceivedMessage(serviceInfoJson.getString("message"));
 
                     Toast.makeText(activity, "Group info available\nSSID:"+serviceInfoJson.getString("ssid")+"\nPassphrase:"+serviceInfoJson.getString("passphrase")
                         +"\nMessage:"+serviceInfoJson.getString("message"), Toast.LENGTH_LONG).show();
@@ -519,5 +546,8 @@ public class WifiDirectManager
 
         void updateListOfAvailablePeers(@NonNull WifiP2pDeviceList peers);
 
+        void addReceivedMessage(String message);
+
+        void clearReceivedMessages();
     }
 }

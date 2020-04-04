@@ -6,22 +6,25 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
-import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.Toast;
+import android.widget.ListView;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements
         WifiDirectManager.Callbacks {
+
+    private List<String> recvMsgs = new ArrayList<>();
+    private List<String> sentMsgs = new ArrayList<>();
+
+    private ListView listRecvMsg, listSentMsg;
+
+    private ArrayAdapter<String> adapterRecMsg, adapterSentMsg;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +33,13 @@ public class MainActivity extends AppCompatActivity implements
 
         final WifiDirectManager wifiDirectManager = new WifiDirectManager(this);
         wifiDirectManager.startWifiDirectManager();
+
+        listRecvMsg = findViewById(R.id.list_recv_msg);
+        listSentMsg = findViewById(R.id.list_sent_msg);
+        adapterRecMsg = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, recvMsgs);
+        adapterSentMsg = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, sentMsgs);
+        listRecvMsg.setAdapter(adapterRecMsg);
+        listSentMsg.setAdapter(adapterSentMsg);
 
         Button btnCreateGroup = findViewById(R.id.btn_create_group);
         btnCreateGroup.setOnClickListener(new View.OnClickListener() {
@@ -52,6 +62,7 @@ public class MainActivity extends AppCompatActivity implements
         btnGetPeerInfo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                clearReceivedMessages();
                 wifiDirectManager.discoverDnsServices();
             }
         });
@@ -63,9 +74,36 @@ public class MainActivity extends AppCompatActivity implements
             public void onClick(View v) {
 //                Toast.makeText(MainActivity.this, edtTextAddMssg.getText(), Toast.LENGTH_SHORT).show();
                 wifiDirectManager.addMessage(edtTextAddMssg.getText().toString());
+                addSentMessage(edtTextAddMssg.getText().toString());
+                edtTextAddMssg.setText("");
             }
         });
 
+        Button btnRemAllServ = findViewById(R.id.btn_rmv_serv);
+        btnRemAllServ.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                wifiDirectManager.removeAllMessages();
+            }
+        });
+
+    }
+
+    public void addSentMessage(String message) {
+        sentMsgs.add(message);
+        adapterSentMsg.notifyDataSetChanged();
+    }
+
+    @Override
+    public void addReceivedMessage(String message) {
+        recvMsgs.add(message);
+        adapterRecMsg.notifyDataSetChanged();
+    }
+
+    @Override
+    public void clearReceivedMessages() {
+        adapterRecMsg.clear();
+//        adapterRecMsg.notifyDataSetChanged();
     }
 
     @Override
