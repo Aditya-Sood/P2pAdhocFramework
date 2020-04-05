@@ -20,11 +20,15 @@ public class MainActivity extends AppCompatActivity implements
         WifiDirectManager.Callbacks {
 
     private List<String> recvMsgs = new ArrayList<>();
+
+    int sendCount = 0;
     private List<String> sentMsgs = new ArrayList<>();
 
     private ListView listRecvMsg, listSentMsg;
 
     private ArrayAdapter<String> adapterRecMsg, adapterSentMsg;
+
+    private EditText edtTextAddMssg;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,14 +72,13 @@ public class MainActivity extends AppCompatActivity implements
         });
 
         Button btnAddServ = findViewById(R.id.btn_add_serv);
-        final EditText edtTextAddMssg = findViewById(R.id.edt_txt_message);
+        edtTextAddMssg = findViewById(R.id.edt_txt_message);
         btnAddServ.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 //                Toast.makeText(MainActivity.this, edtTextAddMssg.getText(), Toast.LENGTH_SHORT).show();
-                wifiDirectManager.addMessage(edtTextAddMssg.getText().toString());
+                wifiDirectManager.addMessage(sendCount, edtTextAddMssg.getText().toString());
                 addSentMessage(edtTextAddMssg.getText().toString());
-                edtTextAddMssg.setText("");
             }
         });
 
@@ -104,6 +107,12 @@ public class MainActivity extends AppCompatActivity implements
     public void clearReceivedMessages() {
         adapterRecMsg.clear();
 //        adapterRecMsg.notifyDataSetChanged();
+    }
+
+    @Override
+    public void onSuccessBroadcastingMessage(){
+        sendCount++;
+        edtTextAddMssg.setText("");
     }
 
     @Override
