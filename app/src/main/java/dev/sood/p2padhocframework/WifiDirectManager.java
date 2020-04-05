@@ -66,6 +66,7 @@ public class WifiDirectManager
     private WifiP2pInfo groupInfo; // Corresponds to P2P group formed between the two devices
 
     private ArrayList<WifiP2pDnsSdServiceInfo> listCurrentBroadcasts = new ArrayList<>();
+    private Map<String, Integer> mapPeerMsgCounter;
 
     public WifiDirectManager(@NonNull Activity activity) {
         this.activity = activity;
@@ -154,8 +155,8 @@ public class WifiDirectManager
         JSONObject serviceInfoJson;
         String serviceInfoSerialised = "";
         try {
-            serviceInfoJson = new JSONObject("{ \"android_id\":\""+ androidId +"\",\"send_count\":\""
-                    +sendCount+"\", \"message\":\"" + message + "\"}");
+            serviceInfoJson = new JSONObject("{ \"android_id\":\""+ androidId +"\",\"timestamp\":\""
+                    +System.nanoTime()+"\",\"send_count\":\"" +sendCount+"\", \"message\":\"" + message + "\"}");
             serviceInfoSerialised = serviceInfoJson.toString();
 
             Log.d(WifiDirectManager.TAG, "Self group info: " + serviceInfoSerialised);
@@ -223,11 +224,21 @@ public class WifiDirectManager
                     
                     Log.d(WifiDirectManager.TAG, "Received JSON: " + txtRecordMap.get("details_json"));
 
-                    callbacks.addReceivedMessage(serviceInfoJson.getString("android_id") +
-                            ": " + serviceInfoJson.getString("message"));
+                    String peerId, peerSendCount, peerMessage;
+                    peerId = serviceInfoJson.getString("android_id");
+                    peerSendCount = serviceInfoJson.getString("send_count");
+                    peerMessage = serviceInfoJson.getString("message");
 
-                    Toast.makeText(activity, "Received message from Android ID:"+serviceInfoJson.getString("android_id")
-                            +"\nMessage"+serviceInfoJson.getString("send_count")+" :"+serviceInfoJson.getString("message"), Toast.LENGTH_LONG).show();
+                    Long timestamp = Long.parseLong(serviceInfoJson.getString("timestamp"));
+
+                    /*if(mapPeerMsgCounter.containsKey(peerId)) {
+                        if(peerSendCount != mapPeerMsgCounter.get(peerId) >= )
+                    }*/
+
+                    callbacks.addReceivedMessage(peerId+": "+peerMessage+"\nTimestamp: "+timestamp);
+
+                    Toast.makeText(activity, "Received message from Android ID:"+peerId+"\nMessage"
+                            +peerSendCount+" :"+peerMessage+"\nTimestamp:"+timestamp, Toast.LENGTH_LONG).show();
 
                 } catch (JSONException e) {
                     Log.e(WifiDirectManager.TAG, e.getMessage());
