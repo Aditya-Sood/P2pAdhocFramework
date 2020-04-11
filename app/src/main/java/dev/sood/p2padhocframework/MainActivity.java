@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -62,23 +63,33 @@ public class MainActivity extends AppCompatActivity implements
         });
 
         wifiDirectManager.setDnsSdServiceResponseListener();
-        Button btnGetPeerInfo = findViewById(R.id.btn_get_peer_info);
-        btnGetPeerInfo.setOnClickListener(new View.OnClickListener() {
+        Button btnDiscoverMessages = findViewById(R.id.btn_discover_msg);
+        btnDiscoverMessages.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                clearReceivedMessages();
+                //clearReceivedMessages()
                 wifiDirectManager.discoverDnsServices();
             }
         });
 
-        Button btnAddServ = findViewById(R.id.btn_add_serv);
+        Button btnQueueMsg = findViewById(R.id.btn_queue_msg);
         edtTextAddMssg = findViewById(R.id.edt_txt_message);
-        btnAddServ.setOnClickListener(new View.OnClickListener() {
+        btnQueueMsg.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 //                Toast.makeText(MainActivity.this, edtTextAddMssg.getText(), Toast.LENGTH_SHORT).show();
-                wifiDirectManager.addMessage(sendCount, edtTextAddMssg.getText().toString());
-                addSentMessage(edtTextAddMssg.getText().toString());
+                String message = edtTextAddMssg.getText().toString();
+                wifiDirectManager.addMessageToBroadcastQueue(sendCount, message);
+                sendCount++;
+                edtTextAddMssg.setText("");
+            }
+        });
+
+        Button btnBroadcast = findViewById(R.id.btn_broadcast);
+        btnBroadcast.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                wifiDirectManager.broadcastMessages();
             }
         });
 
@@ -86,12 +97,13 @@ public class MainActivity extends AppCompatActivity implements
         btnRemAllServ.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                wifiDirectManager.removeAllMessages();
+                wifiDirectManager.removeAllCurrentBroadcasts();
             }
         });
 
     }
 
+    @Override
     public void addSentMessage(String message) {
         sentMsgs.add(message);
         adapterSentMsg.notifyDataSetChanged();
@@ -101,14 +113,16 @@ public class MainActivity extends AppCompatActivity implements
     public void addReceivedMessage(String message) {
         recvMsgs.add(message);
         adapterRecMsg.notifyDataSetChanged();
+        Log.d("WifiDirectManager", "Added message: "+message);
     }
 
-    @Override
-    public void clearReceivedMessages() {
+    /*public void clearReceivedMessages() {
         adapterRecMsg.clear();
 //        adapterRecMsg.notifyDataSetChanged();
-    }
+    }*/
 
+
+    //TODO - look at function caller
     @Override
     public void onSuccessBroadcastingMessage(){
         sendCount++;

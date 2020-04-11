@@ -45,15 +45,15 @@
         android:text="Get Group Info"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintLeft_toRightOf="@id/btn_create_group"
-        app:layout_constraintRight_toLeftOf="@id/btn_get_peer_info"
+        app:layout_constraintRight_toLeftOf="@id/btn_discover_msg"
         android:layout_marginLeft="3dp"
         android:layout_marginTop="10dp" />
 
     <Button
-        android:id="@+id/btn_get_peer_info"
+        android:id="@+id/btn_discover_msg"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Get Peer Info"
+        android:text="Discover msgs"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintLeft_toRightOf="@id/btn_get_group_info"
         app:layout_constraintRight_toRightOf="@id/view_a"
@@ -66,13 +66,14 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:hint="Enter message"
+        android:layout_marginTop="20dp"
         app:layout_constraintTop_toBottomOf="@id/btn_create_group"
         app:layout_constraintLeft_toLeftOf="@id/view_a"
-        app:layout_constraintRight_toLeftOf="@id/btn_add_serv"
+        app:layout_constraintRight_toLeftOf="@id/btn_queue_msg"
         app:layout_constraintHorizontal_weight="3"/>
 
     <Button
-        android:id="@+id/btn_add_serv"
+        android:id="@+id/btn_queue_msg"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintLeft_toRightOf="@id/edt_txt_message"
@@ -80,7 +81,7 @@
         app:layout_constraintTop_toTopOf="@id/edt_txt_message"
         app:layout_constraintBottom_toBottomOf="@id/edt_txt_message"
         app:layout_constraintHorizontal_weight="1"
-        android:text="ADD SERV"/>
+        android:text="Queue Msg"/>
 
     <Button
         android:id="@+id/btn_rmv_serv"
@@ -90,6 +91,14 @@
         app:layout_constraintTop_toBottomOf="@id/edt_txt_message"
         app:layout_constraintRight_toRightOf="@id/view_a"
         android:text="Rem all serv"/>
+    
+    <Button
+        android:id="@+id/btn_broadcast"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="@id/btn_rmv_serv"
+        app:layout_constraintRight_toRightOf="parent"
+        android:text="Broadcast"/>
 
     <TextView
         android:id="@+id/txt_vw_recv_msg"
