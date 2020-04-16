@@ -64,7 +64,6 @@ public class WifiDirectManager
 
     private WifiP2pInfo groupInfo; // Corresponds to P2P group formed between the two devices
 
-    private ArrayList<WifiP2pDnsSdServiceInfo> listCurrentBroadcasts = new ArrayList<>();
     private Map<String, PeerBroadcastState> mapPeerState = new HashMap<>();
     private Map<String, Queue<String>> mapBroadcastMsgQueue = new HashMap<>();
 
@@ -148,27 +147,6 @@ public class WifiDirectManager
                     //Group is ready -> add to a wifip2pdnsSdserviceinfo
                     //TODO
                     removeAllCurrentBroadcasts();
-                    for(Map.Entry<String, Queue<String>> mapEntry : mapBroadcastMsgQueue.entrySet()) {
-                        if(mapEntry.getValue().size() > 0) {
-                            String detailsJson = mapEntry.getValue().remove();
-                            Log.d(WifiDirectManager.TAG, "Prepping: " + detailsJson);
-                            WifiP2pDnsSdServiceInfo serviceInfo = getServiceInfo(detailsJson);
-                            listCurrentBroadcasts.add(serviceInfo);
-                            WifiDirectManager.this.addLocalService(serviceInfo);
-
-                            String displayMsg = detailsJson;
-                            if(mapEntry.getKey().equals(androidId)) {
-                                try {
-                                    JSONObject detailsJsonObj = new JSONObject(detailsJson);
-                                    displayMsg = detailsJsonObj.getString("message");
-                                } catch (Exception e) {
-                                    Log.d(WifiDirectManager.TAG, e.getMessage());
-                                } finally {
-                                    callbacks.addSentMessage(displayMsg);
-                                }
-                            }
-                        }
-                    }
                 }
                 else {
                     Toast.makeText(activity, "Can't broadcast messages, group not formed yet", Toast.LENGTH_LONG).show();
@@ -207,8 +185,40 @@ public class WifiDirectManager
 
     //TODO?
     public void removeAllCurrentBroadcasts(){
-        for(WifiP2pDnsSdServiceInfo serviceInfo : listCurrentBroadcasts) {
-            removeLocalService(serviceInfo);
+        manager.clearLocalServices(channel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                Log.d(WifiDirectManager.TAG, "Removed all local services");
+                addAllCurrentBroadcasts();
+            }
+
+            @Override
+            public void onFailure(int reason) {
+                Log.d(WifiDirectManager.TAG, "Failed to remove all local services");
+            }
+        });
+    }
+
+    public void addAllCurrentBroadcasts() {
+        for(Map.Entry<String, Queue<String>> mapEntry : mapBroadcastMsgQueue.entrySet()) {
+            if(mapEntry.getValue().size() > 0) {
+                String detailsJson = mapEntry.getValue().remove();
+                Log.d(WifiDirectManager.TAG, "Prepping: " + detailsJson);
+                WifiP2pDnsSdServiceInfo serviceInfo = getServiceInfo(detailsJson);
+                WifiDirectManager.this.addLocalService(serviceInfo);
+
+                String displayMsg = detailsJson;
+                if(mapEntry.getKey().equals(androidId)) {
+                    try {
+                        JSONObject detailsJsonObj = new JSONObject(detailsJson);
+                        displayMsg = detailsJsonObj.getString("message");
+                    } catch (Exception e) {
+                        Log.d(WifiDirectManager.TAG, e.getMessage());
+                    } finally {
+                        callbacks.addSentMessage(displayMsg);
+                    }
+                }
+            }
         }
     }
 
