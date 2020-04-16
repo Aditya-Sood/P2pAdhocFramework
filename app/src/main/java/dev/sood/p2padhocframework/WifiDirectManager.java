@@ -137,50 +137,7 @@ public class WifiDirectManager
     }
 
     public void broadcastMessages() {
-        manager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
-            @Override
-            public void onGroupInfoAvailable(WifiP2pGroup group) {
-                if(group != null) {
-//                    Toast.makeText(activity, "Group info available\nSSID:"+group.getNetworkName()+"\nPassphrase:"+group.getPassphrase()
-//                            +"\nMAC:\nConnectivity Status:", Toast.LENGTH_LONG).show();
-
-                    //Group is ready -> add to a wifip2pdnsSdserviceinfo
-                    //TODO
-                    removeAllCurrentBroadcasts();
-                }
-                else {
-                    Toast.makeText(activity, "Can't broadcast messages, group not formed yet", Toast.LENGTH_LONG).show();
-                    Log.d(WifiDirectManager.TAG, "Can't broadcast messages, group not formed yet");
-                }
-
-            }
-        });
-    }
-
-    public WifiP2pDnsSdServiceInfo getServiceInfo(String detailsJson) {
-        Map<String, String> serviceInfoMap = new HashMap<String, String>();
-        serviceInfoMap.put("details_json", detailsJson);
-        WifiP2pDnsSdServiceInfo serviceInfo = WifiP2pDnsSdServiceInfo.newInstance("p2pBroadcast from " + androidId, "_bonjour._tcp", serviceInfoMap);
-
-        return serviceInfo;
-    }
-
-    public void addLocalService(final WifiP2pServiceInfo servInfo) {
-        manager.addLocalService(channel, servInfo, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-                Log.d(WifiDirectManager.TAG, "Added service " + servInfo.toString());
-                Toast.makeText(activity, "Added local service - " + servInfo.toString(), Toast.LENGTH_SHORT).show();
-                //TODO - remove message on successful broadcast?
-//                callbacks.onSuccessBroadcastingMessage();
-            }
-
-            @Override
-            public void onFailure(int reason) {
-                Log.d(WifiDirectManager.TAG, "Failed to add service " + servInfo.toString());
-                Toast.makeText(activity, "Failed to add service", Toast.LENGTH_SHORT).show();
-            }
-        });
+        removeAllCurrentBroadcasts();
     }
 
     //TODO?
@@ -220,6 +177,32 @@ public class WifiDirectManager
                 }
             }
         }
+    }
+
+    public WifiP2pDnsSdServiceInfo getServiceInfo(String detailsJson) {
+        Map<String, String> serviceInfoMap = new HashMap<String, String>();
+        serviceInfoMap.put("details_json", detailsJson);
+        WifiP2pDnsSdServiceInfo serviceInfo = WifiP2pDnsSdServiceInfo.newInstance("p2pBroadcast from " + androidId, "_bonjour._tcp", serviceInfoMap);
+
+        return serviceInfo;
+    }
+
+    public void addLocalService(final WifiP2pServiceInfo servInfo) {
+        manager.addLocalService(channel, servInfo, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                Log.d(WifiDirectManager.TAG, "Added service " + servInfo.toString());
+                Toast.makeText(activity, "Added local service - " + servInfo.toString(), Toast.LENGTH_SHORT).show();
+                //TODO - remove message on successful broadcast?
+//                callbacks.onSuccessBroadcastingMessage();
+            }
+
+            @Override
+            public void onFailure(int reason) {
+                Log.d(WifiDirectManager.TAG, "Failed to add service " + servInfo.toString());
+                Toast.makeText(activity, "Failed to add service", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     public void removeLocalService(final WifiP2pServiceInfo servInfo) {

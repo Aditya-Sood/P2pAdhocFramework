@@ -46,22 +46,6 @@ public class MainActivity extends AppCompatActivity implements
         listRecvMsg.setAdapter(adapterRecMsg);
         listSentMsg.setAdapter(adapterSentMsg);
 
-        Button btnCreateGroup = findViewById(R.id.btn_create_group);
-        btnCreateGroup.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                wifiDirectManager.createGroup();
-            }
-        });
-
-        Button btnGetGroupInfo = findViewById(R.id.btn_get_group_info);
-        btnGetGroupInfo.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                wifiDirectManager.getGroupInfo();
-            }
-        });
-
         wifiDirectManager.setDnsSdServiceResponseListener();
         Button btnDiscoverMessages = findViewById(R.id.btn_discover_msg);
         btnDiscoverMessages.setOnClickListener(new View.OnClickListener() {
@@ -92,15 +76,6 @@ public class MainActivity extends AppCompatActivity implements
                 wifiDirectManager.broadcastMessages();
             }
         });
-
-        Button btnRemAllServ = findViewById(R.id.btn_rmv_serv);
-        btnRemAllServ.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                wifiDirectManager.removeAllCurrentBroadcasts();
-            }
-        });
-
     }
 
     @Override
@@ -115,12 +90,6 @@ public class MainActivity extends AppCompatActivity implements
         adapterRecMsg.notifyDataSetChanged();
         Log.d("WifiDirectManager", "Added message: "+message);
     }
-
-    /*public void clearReceivedMessages() {
-        adapterRecMsg.clear();
-//        adapterRecMsg.notifyDataSetChanged();
-    }*/
-
 
     //TODO - look at function caller
     @Override
