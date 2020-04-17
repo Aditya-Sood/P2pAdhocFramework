@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -22,7 +23,7 @@ public class MainActivity extends AppCompatActivity implements
 
     private List<String> recvMsgs = new ArrayList<>();
 
-    int sendCount = 0;
+    int msgCount = 0;
     private List<String> sentMsgs = new ArrayList<>();
 
     private ListView listRecvMsg, listSentMsg;
@@ -36,8 +37,21 @@ public class MainActivity extends AppCompatActivity implements
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        final WifiDirectManager wifiDirectManager = new WifiDirectManager(this);
+        String androidId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        if(androidId == null) {
+            androidId = "randomId:"+(1001*Math.random());
+        }
+
+        final WifiDirectManager wifiDirectManager = new WifiDirectManager(this, androidId);
         wifiDirectManager.startWifiDirectManager();
+
+        wifiDirectManager.setDnsSdServiceResponseListener();
+        wifiDirectManager.removeAllCurrentBroadcasts();
+
+        wifiDirectManager.addMessageToBroadcastQueue(msgCount, androidId+" online");
+        msgCount++;
+        wifiDirectManager.broadcastMessages();
+        wifiDirectManager.discoverDnsServices();
 
         listRecvMsg = findViewById(R.id.list_recv_msg);
         listSentMsg = findViewById(R.id.list_sent_msg);
@@ -46,7 +60,6 @@ public class MainActivity extends AppCompatActivity implements
         listRecvMsg.setAdapter(adapterRecMsg);
         listSentMsg.setAdapter(adapterSentMsg);
 
-        wifiDirectManager.setDnsSdServiceResponseListener();
         Button btnDiscoverMessages = findViewById(R.id.btn_discover_msg);
         btnDiscoverMessages.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -63,8 +76,8 @@ public class MainActivity extends AppCompatActivity implements
             public void onClick(View v) {
 //                Toast.makeText(MainActivity.this, edtTextAddMssg.getText(), Toast.LENGTH_SHORT).show();
                 String message = edtTextAddMssg.getText().toString();
-                wifiDirectManager.addMessageToBroadcastQueue(sendCount, message);
-                sendCount++;
+                wifiDirectManager.addMessageToBroadcastQueue(msgCount, message);
+                msgCount++;
                 edtTextAddMssg.setText("");
             }
         });
@@ -94,7 +107,7 @@ public class MainActivity extends AppCompatActivity implements
     //TODO - look at function caller
     @Override
     public void onSuccessBroadcastingMessage(){
-        sendCount++;
+        msgCount++;
         edtTextAddMssg.setText("");
     }
 

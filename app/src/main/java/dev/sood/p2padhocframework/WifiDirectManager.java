@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -47,6 +46,7 @@ public class WifiDirectManager
         P2pAdhocBroadcastReceiver.P2pEventListener {
 
     private static final String TAG = "WifiDirectManager";
+    private static final String SERVICE_INSTANCE_NAME = "p2padhocframework";
 
     private String androidId;
 
@@ -65,17 +65,14 @@ public class WifiDirectManager
     private WifiP2pInfo groupInfo; // Corresponds to P2P group formed between the two devices
 
     private Map<String, PeerBroadcastState> mapPeerState = new HashMap<>();
-    private Map<String, Queue<String>> mapBroadcastMsgQueue = new HashMap<>();
+    private Map<String, Queue<BroadcastMessage>> mapBroadcastMsgQueue = new HashMap<>();
 
-    public WifiDirectManager(@NonNull Activity activity) {
+    public WifiDirectManager(@NonNull Activity activity, String androidId) {
         this.activity = activity;
         this.callbacks = (Callbacks) activity;
+        this.androidId = androidId;
 
-        androidId = Settings.Secure.getString(activity.getContentResolver(), Settings.Secure.ANDROID_ID);
-        if(androidId == null) {
-            androidId = "randomId:"+(1001*Math.random());
-        }
-        mapBroadcastMsgQueue.put(androidId, new LinkedList<String>());
+        mapBroadcastMsgQueue.put(androidId, new LinkedList<BroadcastMessage>());
     }
 
     /* Initialisations for using the WiFi P2P API */
@@ -102,38 +99,9 @@ public class WifiDirectManager
         activity.unregisterReceiver(receiver);
     }
 
-    public void createGroup() {
-        manager.createGroup(channel, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-                Toast.makeText(activity, "Successfully initiated group creation", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFailure(int reason) {
-                Toast.makeText(activity, "Failed to initiate group creation", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    public void getGroupInfo() {
-        manager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
-            @Override
-            public void onGroupInfoAvailable(WifiP2pGroup group) {
-                if(group != null)
-                    Toast.makeText(activity, "Group info available, WifiP2pManager.ActionListener listenere\nSSID:"+group.getNetworkName()+"\nPassphrase:"+group.getPassphrase()
-                            +"\nMAC:\nConnectivity Status:", Toast.LENGTH_SHORT).show();
-                else
-                    Toast.makeText(activity, "Group not formed yet", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
     public void addMessageToBroadcastQueue(final int sendCount, final String message) {
-        String detailsJsonString = "{ \"android_id\":\""+androidId+"\",\"timestamp\":\""
-                +System.nanoTime()+"\",\"send_count\":\""+sendCount+"\", \"message\":\""+message+"\"}";
-
-        mapBroadcastMsgQueue.get(androidId).add(detailsJsonString);
+        mapBroadcastMsgQueue.get(androidId)
+                .add(new BroadcastMessage(androidId, System.nanoTime()+"", sendCount+"", message));
     }
 
     public void broadcastMessages() {
@@ -157,32 +125,29 @@ public class WifiDirectManager
     }
 
     public void addAllCurrentBroadcasts() {
-        for(Map.Entry<String, Queue<String>> mapEntry : mapBroadcastMsgQueue.entrySet()) {
+        for(Map.Entry<String, Queue<BroadcastMessage>> mapEntry : mapBroadcastMsgQueue.entrySet()) {
             if(mapEntry.getValue().size() > 0) {
-                String detailsJson = mapEntry.getValue().remove();
-                Log.d(WifiDirectManager.TAG, "Prepping: " + detailsJson);
-                WifiP2pDnsSdServiceInfo serviceInfo = getServiceInfo(detailsJson);
+                BroadcastMessage broadcastMessage = mapEntry.getValue().remove();
+                Log.d(WifiDirectManager.TAG, "Prepping: " + broadcastMessage.toString());
+                WifiP2pDnsSdServiceInfo serviceInfo = getServiceInfo(broadcastMessage);
                 WifiDirectManager.this.addLocalService(serviceInfo);
 
-                String displayMsg = detailsJson;
                 if(mapEntry.getKey().equals(androidId)) {
-                    try {
-                        JSONObject detailsJsonObj = new JSONObject(detailsJson);
-                        displayMsg = detailsJsonObj.getString("message");
-                    } catch (Exception e) {
-                        Log.d(WifiDirectManager.TAG, e.getMessage());
-                    } finally {
-                        callbacks.addSentMessage(displayMsg);
-                    }
+                    callbacks.addSentMessage(broadcastMessage.getMessage());
                 }
             }
         }
     }
 
-    public WifiP2pDnsSdServiceInfo getServiceInfo(String detailsJson) {
+    public WifiP2pDnsSdServiceInfo getServiceInfo(BroadcastMessage broadcastMessage) {
         Map<String, String> serviceInfoMap = new HashMap<String, String>();
-        serviceInfoMap.put("details_json", detailsJson);
-        WifiP2pDnsSdServiceInfo serviceInfo = WifiP2pDnsSdServiceInfo.newInstance("p2pBroadcast from " + androidId, "_bonjour._tcp", serviceInfoMap);
+        serviceInfoMap.put("txtvers", "0.1"); // For version compatibility
+        serviceInfoMap.put(BroadcastMessage.DEVICE_ID, broadcastMessage.getDeviceId());
+        serviceInfoMap.put(BroadcastMessage.TIMESTAMP, broadcastMessage.getTimestamp()+"");
+        serviceInfoMap.put(BroadcastMessage.MSG_COUNT, broadcastMessage.getMsgCount()+"");
+        serviceInfoMap.put(BroadcastMessage.MESSAGE, broadcastMessage.getMessage());
+
+        WifiP2pDnsSdServiceInfo serviceInfo = WifiP2pDnsSdServiceInfo.newInstance(SERVICE_INSTANCE_NAME, "_bonjour._tcp", serviceInfoMap);
 
         return serviceInfo;
     }
@@ -229,50 +194,45 @@ public class WifiDirectManager
         }, new WifiP2pManager.DnsSdTxtRecordListener() {
             @Override
             public void onDnsSdTxtRecordAvailable(String fullDomainName, Map<String, String> txtRecordMap, WifiP2pDevice srcDevice) {
-                JSONObject serviceInfoJson;
-                try {
-                    serviceInfoJson = new JSONObject(txtRecordMap.get("details_json"));
-                    
-                    Log.d(WifiDirectManager.TAG, "Received JSON: " + txtRecordMap.get("details_json"));
 
-                    String peerId = serviceInfoJson.getString("android_id");
-                    long peerTimestamp = Long.parseLong(serviceInfoJson.getString("timestamp"));
-                    int peerSendCount = Integer.parseInt(serviceInfoJson.getString("send_count"));
-                    String peerMessage = serviceInfoJson.getString("message");
+                Log.d(WifiDirectManager.TAG, fullDomainName+" : "+txtRecordMap.get(BroadcastMessage.DEVICE_ID)+" - "+txtRecordMap.get(BroadcastMessage.MESSAGE));
 
-                    if(peerId.equals(androidId)) {
-                        Log.d(WifiDirectManager.TAG, "Cyclic broadcast, ignore message");
-                        return;
-                    }
+                String peerDeviceId = txtRecordMap.get(BroadcastMessage.DEVICE_ID);
+                long peerTimestamp = Long.parseLong(txtRecordMap.get(BroadcastMessage.TIMESTAMP));
+                int peerSendCount = Integer.parseInt(txtRecordMap.get(BroadcastMessage.MSG_COUNT));
+                String peerMessage = txtRecordMap.get(BroadcastMessage.MESSAGE);
 
-                    if(mapPeerState.containsKey(peerId)) {
-                        if((peerSendCount == 0 && peerTimestamp <= mapPeerState.get(peerId).getLastTimestamp()) || (peerSendCount > 0 && peerSendCount <= mapPeerState.get(peerId).getSendCount())) {
-                            Log.d(WifiDirectManager.TAG, "Stale message ignored");
-                            return;
-                        } else {
-                            mapPeerState.get(peerId).setLastTimestamp(peerTimestamp);
-                            mapPeerState.get(peerId).setSendCount(peerSendCount);
-                        }
-                    } else {
-                        mapPeerState.put(peerId, new PeerBroadcastState(peerTimestamp, peerSendCount));
-                        mapBroadcastMsgQueue.put(peerId, new LinkedList<String>());
-                    }
-                    mapBroadcastMsgQueue.get(peerId).add(txtRecordMap.get("details_json"));
-
-                    callbacks.addReceivedMessage(peerId+": "+peerMessage+"\nTimestamp: "+peerTimestamp);
-
-                    Log.d(WifiDirectManager.TAG, "Added JSON: " + txtRecordMap.get("details_json"));
-
-                    Toast.makeText(activity, "Received message from Android ID:"+peerId+"\nMessage"
-                            +peerSendCount+" :"+peerMessage+"\nTimestamp:"+peerTimestamp, Toast.LENGTH_LONG).show();
-
-                } catch (JSONException e) {
-                    Log.e(WifiDirectManager.TAG, e.getMessage());
+                if(peerDeviceId.equals(androidId)) {
+                    Log.d(WifiDirectManager.TAG, "Cyclic broadcast, ignore message");
+                    return;
                 }
+
+                if(mapPeerState.containsKey(peerDeviceId)) {
+                    if((peerSendCount == 0 && peerTimestamp <= mapPeerState.get(peerDeviceId).getLastTimestamp()) || (peerSendCount > 0 && peerSendCount <= mapPeerState.get(peerDeviceId).getMsgCount())) {
+                        Log.d(WifiDirectManager.TAG, "Stale message ignored");
+                        return;
+                    } else {
+                        mapPeerState.get(peerDeviceId).setLastTimestamp(peerTimestamp);
+                        mapPeerState.get(peerDeviceId).setMsgCount(peerSendCount);
+                    }
+                } else {
+                    mapPeerState.put(peerDeviceId, new PeerBroadcastState(peerTimestamp, peerSendCount));
+                    mapBroadcastMsgQueue.put(peerDeviceId, new LinkedList<BroadcastMessage>());
+                }
+
+                mapBroadcastMsgQueue.get(peerDeviceId)
+                        .add(new BroadcastMessage(peerDeviceId, peerTimestamp+"", peerSendCount+"", peerMessage));
+
+                callbacks.addReceivedMessage(peerDeviceId+": "+peerMessage+"\nTimestamp: "+peerTimestamp);
+
+                Log.d(WifiDirectManager.TAG, "Added message: "+peerDeviceId+" - "+peerMessage);
+
+                Toast.makeText(activity, "Received message from Android ID:"+peerDeviceId+"\nMessage"
+                        +peerSendCount+" :"+peerMessage+"\nTimestamp:"+peerTimestamp, Toast.LENGTH_LONG).show();
             }
         });
 
-        addServiceRequest(WifiP2pDnsSdServiceRequest.newInstance());
+        addServiceRequest(WifiP2pDnsSdServiceRequest.newInstance(SERVICE_INSTANCE_NAME, "_bonjour._tcp"));
     }
 
     /**
@@ -602,27 +562,64 @@ public class WifiDirectManager
 
     private class PeerBroadcastState {
         private long lastTimestamp;
-        private int sendCount;
+        private int msgCount;
 
-        public PeerBroadcastState(long lastTimestamp, int sendCount) {
+        public PeerBroadcastState(long lastTimestamp, int msgCount) {
             this.lastTimestamp = lastTimestamp;
-            this.sendCount = sendCount;
+            this.msgCount = msgCount;
         }
 
         public long getLastTimestamp() {
             return lastTimestamp;
         }
 
-        public int getSendCount() {
-            return sendCount;
+        public int getMsgCount() {
+            return msgCount;
         }
 
         public void setLastTimestamp(long lastTimestamp) {
             this.lastTimestamp = lastTimestamp;
         }
 
-        public void setSendCount(int sendCount) {
-            this.sendCount = sendCount;
+        public void setMsgCount(int msgCount) {
+            this.msgCount = msgCount;
+        }
+    }
+
+    private static class BroadcastMessage {
+
+        //Keys must not be longer than 9 characters
+        public final static String DEVICE_ID = "device_id";
+        public final static String TIMESTAMP = "timestamp";
+        public final static String MSG_COUNT = "msg_count";
+        public final static String MESSAGE = "message";
+
+        private String deviceId;
+        private long timestamp;
+        private int msgCount;
+        private String message;
+
+        public BroadcastMessage(String deviceId, String timestamp, String msgCount, String message) {
+            this.deviceId = deviceId;
+            this.timestamp = Long.parseLong(timestamp);
+            this.msgCount = Integer.parseInt(msgCount);
+            this.message = message;
+        }
+
+        public String getDeviceId() {
+            return deviceId;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
+
+        public int getMsgCount() {
+            return msgCount;
+        }
+
+        public String getMessage() {
+            return message;
         }
     }
 }
