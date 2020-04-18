@@ -4,8 +4,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Context;
+import android.content.Intent;
+import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
@@ -18,12 +22,17 @@ import android.widget.ListView;
 import java.util.ArrayList;
 import java.util.List;
 
+import static dev.sood.p2padhocframework.WifiDirectManager.INITIAL_COUNT;
+
 public class MainActivity extends AppCompatActivity implements
         WifiDirectManager.Callbacks {
 
+    private WifiDirectManager wifiDirectManager;
+    private WifiManager wifiManager;
+
     private List<String> recvMsgs = new ArrayList<>();
 
-    int msgCount = 0;
+    int msgCount = INITIAL_COUNT;
     private List<String> sentMsgs = new ArrayList<>();
 
     private ListView listRecvMsg, listSentMsg;
@@ -42,16 +51,8 @@ public class MainActivity extends AppCompatActivity implements
             androidId = "randomId:"+(1001*Math.random());
         }
 
-        final WifiDirectManager wifiDirectManager = new WifiDirectManager(this, androidId);
-        wifiDirectManager.startWifiDirectManager();
-
-        wifiDirectManager.setDnsSdServiceResponseListener();
-        wifiDirectManager.removeAllCurrentBroadcasts();
-
-        wifiDirectManager.addMessageToBroadcastQueue(msgCount, androidId+" online");
-        msgCount++;
-        wifiDirectManager.broadcastMessages();
-        wifiDirectManager.discoverDnsServices();
+        wifiManager = (WifiManager) this.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        wifiDirectManager = new WifiDirectManager(this, androidId);
 
         listRecvMsg = findViewById(R.id.list_recv_msg);
         listSentMsg = findViewById(R.id.list_sent_msg);
@@ -124,5 +125,15 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void updateListOfAvailablePeers(@NonNull WifiP2pDeviceList peers) {
 
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!wifiManager.isWifiEnabled()) {
+            startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+        } else {
+            wifiDirectManager.startWifiDirectManager();
+        }
     }
 }
