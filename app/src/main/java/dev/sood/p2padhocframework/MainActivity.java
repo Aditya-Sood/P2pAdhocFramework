@@ -64,8 +64,7 @@ public class MainActivity extends AppCompatActivity implements
         btnDiscoverMessages.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //clearReceivedMessages()
-                wifiDirectManager.discoverDnsServices();
+                wifiDirectManager.discoverPeerPackets();
             }
         });
 
@@ -75,7 +74,6 @@ public class MainActivity extends AppCompatActivity implements
         btnQueueMsg.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                Toast.makeText(MainActivity.this, edtTextAddMssg.getText(), Toast.LENGTH_SHORT).show();
                 String destination = edtTextDestination.getText().toString();
                 String message = edtTextAddMssg.getText().toString();
                 wifiDirectManager.addMessageToBroadcastQueue(msgCount, destination, message);
@@ -89,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements
         btnBroadcast.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                wifiDirectManager.broadcastMessages();
+                wifiDirectManager.broadcastPackets();
             }
         });
     }
@@ -107,7 +105,6 @@ public class MainActivity extends AppCompatActivity implements
         Log.d("WifiDirectManager", "Added message: "+message);
     }
 
-    //TODO - look at function caller
     @Override
     public void onSuccessBroadcastingMessage(){
         msgCount++;

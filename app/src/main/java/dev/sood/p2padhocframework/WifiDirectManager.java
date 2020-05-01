@@ -4,9 +4,6 @@ import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
-import android.net.Uri;
-import android.net.wifi.WpsInfo;
-import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pInfo;
@@ -16,7 +13,6 @@ import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest;
 import android.net.wifi.p2p.nsd.WifiP2pServiceInfo;
 import android.net.wifi.p2p.nsd.WifiP2pServiceRequest;
 import android.os.Build;
-import android.os.Handler;
 import android.util.Log;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -65,7 +61,6 @@ public class WifiDirectManager
     private Map<String, Queue<DataPacket>> mapBroadcastPktQueue = new HashMap<>();
 
     private final Object mutexLockMapBroadcastPktQueue = new Object();
-    private Handler handlerMsgDiscovery, handlerMsgBroadcast;
 
     public WifiDirectManager(@NonNull Activity activity, String androidId) {
         this.activity = activity;
@@ -85,25 +80,8 @@ public class WifiDirectManager
         removeAllCurrentBroadcasts();
 
         addMessageToBroadcastQueue(INITIAL_COUNT-1, "", androidId+" online");
-        broadcastMessages();
-        discoverDnsServices();
-
-        handlerMsgBroadcast = new Handler();
-        handlerMsgDiscovery = new Handler();
-        /*handlerMsgBroadcast.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                broadcastMessages();
-                handlerMsgBroadcast.postDelayed(this, 5000);
-            }
-        }, 5000);
-        handlerMsgDiscovery.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                discoverDnsServices();
-                handlerMsgDiscovery.postDelayed(this, 1000);
-            }
-        }, 1000);*/
+        broadcastPackets();
+        discoverPeerPackets();
     }
 
     public void registerWifiDirectBroadcastReceiver() {
@@ -130,11 +108,10 @@ public class WifiDirectManager
         }
     }
 
-    public void broadcastMessages() {
+    public void broadcastPackets() {
         removeAllCurrentBroadcasts();
     }
 
-    //TODO?
     public void removeAllCurrentBroadcasts(){
         manager.clearLocalServices(channel, new WifiP2pManager.ActionListener() {
             @Override
@@ -196,8 +173,6 @@ public class WifiDirectManager
             public void onSuccess() {
                 Log.d(WifiDirectManager.TAG, "Added service " + servInfo.toString());
                 Toast.makeText(activity, "Added local service - " + servInfo.toString(), Toast.LENGTH_SHORT).show();
-                //TODO - remove message on successful broadcast?
-//                callbacks.onSuccessBroadcastingMessage();
             }
 
             @Override
@@ -233,11 +208,15 @@ public class WifiDirectManager
             @Override
             public void onDnsSdTxtRecordAvailable(String fullDomainName, Map<String, String> txtRecordMap, WifiP2pDevice srcDevice) {
 
+                if(txtRecordMap.get("txtvers") == null) {
+                    return;
+                }
+
                 Log.d(WifiDirectManager.TAG, fullDomainName+" : "+txtRecordMap.get(DataPacket.KEY_SENDER_ID)+" - "+txtRecordMap.get(DataPacket.KEY_MESSAGE));
 
                 String peerDeviceId = txtRecordMap.get(DataPacket.KEY_SENDER_ID);
                 long peerTimestamp = Long.parseLong(txtRecordMap.get(DataPacket.KEY_TIMESTAMP));
-                int peerSendCount = Integer.parseInt(txtRecordMap.get(DataPacket.KEY_PKT_COUNT));
+                int peerPktCount = Integer.parseInt(txtRecordMap.get(DataPacket.KEY_PKT_COUNT));
                 String destination = txtRecordMap.get(DataPacket.KEY_DESTINATION);
                 String peerMessage = txtRecordMap.get(DataPacket.KEY_MESSAGE);
 
@@ -248,21 +227,21 @@ public class WifiDirectManager
 
                 synchronized (mutexLockMapBroadcastPktQueue) {
                     if(mapPeerTransmissionState.containsKey(peerDeviceId)) {
-                        if((peerSendCount == 0 && peerTimestamp <= mapPeerTransmissionState.get(peerDeviceId).getLastTimestamp()) || (peerSendCount > 0 && peerSendCount <= mapPeerTransmissionState.get(peerDeviceId).getPktCount())) {
+                        if((peerPktCount == 0 && peerTimestamp <= mapPeerTransmissionState.get(peerDeviceId).getLastTimestamp()) || (peerPktCount > 0 && peerPktCount <= mapPeerTransmissionState.get(peerDeviceId).getPktCount())) {
                             Log.d(WifiDirectManager.TAG, "Stale message ignored");
                             return;
                         } else {
                             mapPeerTransmissionState.get(peerDeviceId).setLastTimestamp(peerTimestamp);
-                            mapPeerTransmissionState.get(peerDeviceId).setPktCount(peerSendCount);
+                            mapPeerTransmissionState.get(peerDeviceId).setPktCount(peerPktCount);
                         }
                     } else {
-                        mapPeerTransmissionState.put(peerDeviceId, new PeerTransmissionState(peerTimestamp, peerSendCount));
+                        mapPeerTransmissionState.put(peerDeviceId, new PeerTransmissionState(peerTimestamp, peerPktCount));
                         mapBroadcastPktQueue.put(peerDeviceId, new LinkedList<DataPacket>());
                     }
 
                     mapBroadcastPktQueue.get(peerDeviceId)
                             .add(new DataPacket(peerDeviceId, peerTimestamp+"",
-                                    peerSendCount+"", destination, peerMessage));
+                                    peerPktCount+"", destination, peerMessage));
                 }
 
                 if(destination == null || destination.equals(androidId)) {
@@ -273,7 +252,7 @@ public class WifiDirectManager
                 }
 
                 Toast.makeText(activity, "Received message from Android ID:"+peerDeviceId+"\nMessage"
-                        +peerSendCount+" :"+peerMessage+"\nTimestamp:"+peerTimestamp, Toast.LENGTH_LONG).show();
+                        +peerPktCount+" :"+peerMessage+"\nTimestamp:"+peerTimestamp, Toast.LENGTH_LONG).show();
             }
         });
 
@@ -282,7 +261,7 @@ public class WifiDirectManager
 
     /**
      * Discovers all DNS service broadcasts - and hence the peer messages*/
-    public void discoverDnsServices() {
+    public void discoverPeerPackets() {
         manager.discoverServices(channel, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() {
@@ -314,29 +293,13 @@ public class WifiDirectManager
         });
     }
 
-    public void discoverPeerDevices() {
-        manager.discoverPeers(channel, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-//                displayToast(R.string.discovery_initiated, Toast.LENGTH_SHORT);
-            }
 
-            @Override
-            public void onFailure(int reason) {
-                String errorMessage = getErrorMessage(reason);
-//                Log.d(TAG, activity.getString(R.string.discovery_failed) + ": " + errorMessage);
-//                displayToast(R.string.discovery_failed, Toast.LENGTH_SHORT);
-            }
-        });
-    }
-
-    /* From KiwixWifiP2pBroadcastReceiver.P2pEventListener callback-interface*/
+    /* From P2pEventListener callback-interface*/
     @Override
     public void onWifiP2pStateChanged(boolean isEnabled) {
         this.isWifiP2pEnabled = isEnabled;
 
         if (!isWifiP2pEnabled) {
-//            displayToast(R.string.discovery_needs_wifi, Toast.LENGTH_SHORT);
             callbacks.onConnectionToPeersLost();
         }
 
@@ -353,55 +316,11 @@ public class WifiDirectManager
 
     @Override
     public void onConnectionChanged(boolean isConnected) {
-//        if (isConnected) {
-//            // Request connection info about the wifi p2p group formed upon connection
-//            manager.requestConnectionInfo(channel, this);
-//        } else {
-//            // Not connected after connection change -> Disconnected
-//            callbacks.onConnectionToPeersLost();
-//        }
-
-        /*manager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
-            @Override
-            public void onGroupInfoAvailable(WifiP2pGroup group) {
-                if(group != null) {
-//                    Toast.makeText(activity, "Group info available\nSSID:"+group.getNetworkName()+"\nPassphrase:"+group.getPassphrase()
-//                            +"\nMAC:\nConnectivity Status:", Toast.LENGTH_LONG).show();
-
-                    //Group is ready -> add to a wifip2pdnsSdserviceinfo
-
-                    JSONObject serviceInfoJson;
-                    String serviceInfoSerialised = "";
-                    try {
-                        serviceInfoJson = new JSONObject("{ \"ssid\":\""+ group.getNetworkName() +
-                                "\", \"passphrase\":\"" + group.getPassphrase() +"\", \"message\":\"You made it!\"}");
-                        serviceInfoSerialised = serviceInfoJson.toString();
-
-                        Log.d(WifiDirectManager.TAG, "Self group info: " + serviceInfoSerialised);
-                    } catch (JSONException e) {
-                        Log.e(WifiDirectManager.TAG, e.getMessage());
-                    }
-
-                    Map<String, String> serviceInfoMap = new HashMap<String, String>();
-                    serviceInfoMap.put("details_json", serviceInfoSerialised);
-                    WifiP2pDnsSdServiceInfo serviceInfo = WifiP2pDnsSdServiceInfo.newInstance("gandalfTestInstance-" + group.getNetworkName(), "_bonjour._tcp", serviceInfoMap);
-
-                    WifiDirectManager.this.addLocalService(serviceInfo);
-                }
-                else {
-//                    Toast.makeText(activity, "Group not formed yet", Toast.LENGTH_LONG).show();
-                }
-
-            }
-        });*/
-
-
         Log.d(WifiDirectManager.TAG, "P2p Connnection Changed: isConnected " + isConnected);
     }
 
     @Override
     public void onDeviceChanged(@Nullable WifiP2pDevice userDevice) {
-        // Update UI with wifi-direct details about the user device
         callbacks.onUserDeviceDetailsAvailable(userDevice);
     }
 
@@ -414,8 +333,6 @@ public class WifiDirectManager
             callbacks.onConnectionToPeersLost();
             shouldRetry = false;
             manager.initialize(activity, getMainLooper(), this);
-        } else {
-//            displayToast(R.string.severe_loss_error, Toast.LENGTH_LONG);
         }
     }
 
@@ -450,35 +367,10 @@ public class WifiDirectManager
         return groupInfo.groupOwnerAddress;
     }
 
-    public void sendToDevice(@NonNull WifiP2pDevice senderSelectedPeerDevice) {
-    }
-
-    public void connect() {
-        WifiP2pConfig config = new WifiP2pConfig();
-//        config.deviceAddress = senderSelectedPeerDevice.deviceAddress;
-        config.wps.setup = WpsInfo.PBC;
-
-        manager.connect(channel, config, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-                // UI updated from broadcast receiver
-            }
-
-            @Override
-            public void onFailure(int reason) {
-                String errorMessage = getErrorMessage(reason);
-//                Log.d(TAG, activity.getString(R.string.connection_failed) + ": " + errorMessage);
-//                displayToast(R.string.connection_failed, Toast.LENGTH_LONG);
-            }
-        });
-    }
-
     public void performHandshakeWithSelectedPeerDevice() {
         if (BuildConfig.DEBUG) {
             Log.d(TAG, "Starting handshake");
         }
-//        peerGroupHandshakeAsyncTask = new PeerGroupHandshakeAsyncTask(this);
-//        peerGroupHandshakeAsyncTask.execute();
     }
 
     public static void copyToOutputStream(@NonNull InputStream inputStream,
@@ -493,29 +385,14 @@ public class WifiDirectManager
 
         outputStream.close();
         inputStream.close();
-//        Log.d(LocalFileTransferActivity.TAG, "Both streams closed");
     }
 
-    public void setClientAddress(@Nullable InetAddress clientAddress) {
-        if (clientAddress == null) {
-            // null is returned only in case of a failed handshake
-//            displayToast(R.string.device_not_cooperating, Toast.LENGTH_LONG);
-//            callbacks.onFileTransferComplete();
-//            return;
+    public void stopWifiDirectManager(boolean isChannelOpen) {
+        if (isChannelOpen) {
+            closeChannel();
+        } else {
+            disconnect();
         }
-
-        // If control reaches here, means handshake was successful
-//        selectedPeerDeviceInetAddress = clientAddress;
-//        startFileTransfer();
-    }
-
-
-    public void stopWifiDirectManager() {
-//        if (isFileSender) {
-//            closeChannel();
-//        } else {
-//            disconnect();
-//        }
 
         unregisterWifiDirectBroadcastReceiver();
     }
@@ -575,20 +452,6 @@ public class WifiDirectManager
             default:
                 return "Unknown";
         }
-    }
-
-    public static @NonNull String getFileName(@NonNull Uri fileUri) {
-        String fileUriString = fileUri.toString();
-        // Returns text after location of last slash in the file path
-        return fileUriString.substring(fileUriString.lastIndexOf('/') + 1);
-    }
-
-    public void displayToast(int stringResourceId, @NonNull String templateValue, int duration) {
-//        showToast(activity, activity.getString(stringResourceId, templateValue), duration);
-    }
-
-    public void displayToast(int stringResourceId, int duration) {
-//        showToast(activity, stringResourceId, duration);
     }
 
     public interface Callbacks {
