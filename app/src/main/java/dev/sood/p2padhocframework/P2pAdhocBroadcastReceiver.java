@@ -10,8 +10,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
- * Helper class for the local file sharing module.
- *
  * Handles the broadcasts pertaining to the wifi p2p group formed in WiFi Direct. Works along with
  * the wifi p2p manager in {@link WifiDirectManager}.
  */
