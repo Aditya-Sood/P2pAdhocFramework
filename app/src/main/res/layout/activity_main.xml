@@ -28,54 +28,64 @@
         app:layout_constraintBottom_toBottomOf="parent"/>
 
     <EditText
-        android:id="@+id/edt_txt_message"
+        android:id="@+id/edt_txt_destination"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:hint="Enter message"
+        android:hint="Destination"
         android:layout_marginTop="20dp"
         app:layout_constraintTop_toTopOf="@id/view_a"
         app:layout_constraintLeft_toLeftOf="@id/view_a"
+        app:layout_constraintRight_toLeftOf="@id/edt_txt_message"
+        app:layout_constraintHorizontal_weight="3"/>
+
+    <EditText
+        android:id="@+id/edt_txt_message"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="Message"
+        android:layout_marginTop="20dp"
+        app:layout_constraintTop_toTopOf="@id/view_a"
+        app:layout_constraintLeft_toRightOf="@id/edt_txt_destination"
         app:layout_constraintRight_toLeftOf="@id/btn_queue_msg"
         app:layout_constraintHorizontal_weight="3"/>
 
     <Button
         android:id="@+id/btn_queue_msg"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="Add Pkt"
         app:layout_constraintLeft_toRightOf="@id/edt_txt_message"
         app:layout_constraintRight_toRightOf="@id/view_a"
         app:layout_constraintTop_toTopOf="@id/edt_txt_message"
-        app:layout_constraintBottom_toBottomOf="@id/edt_txt_message"
-        app:layout_constraintHorizontal_weight="1"
-        android:text="Queue Msg"/>
+        app:layout_constraintBottom_toBottomOf="@id/edt_txt_message" />
 
     <Button
-        android:id="@+id/btn_discover_msg"
+        android:id="@+id/btn_discover_pkt"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Discover msgs"
+        android:text="Discover Packets"
         app:layout_constraintTop_toBottomOf="@id/edt_txt_message"
         app:layout_constraintLeft_toLeftOf="@id/view_a"
-        app:layout_constraintRight_toLeftOf="@id/btn_broadcast"
+        app:layout_constraintRight_toLeftOf="@id/btn_send_pkt"
         android:layout_marginTop="15dp"/>
 
     <Button
-        android:id="@+id/btn_broadcast"
+        android:id="@+id/btn_send_pkt"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintLeft_toRightOf="@id/btn_discover_msg"
-        app:layout_constraintTop_toTopOf="@id/btn_discover_msg"
+        app:layout_constraintLeft_toRightOf="@id/btn_discover_pkt"
+        app:layout_constraintTop_toTopOf="@id/btn_discover_pkt"
         app:layout_constraintRight_toRightOf="@id/view_a"
-        android:text="Broadcast"/>
+        android:text="Send Packets"/>
 
     <TextView
-        android:id="@+id/txt_vw_recv_msg"
+        android:id="@+id/txt_vw_recv_pkt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintTop_toTopOf="@id/view_b"
         app:layout_constraintLeft_toLeftOf="@id/view_b"
         app:layout_constraintRight_toRightOf="@id/view_b"
-        android:text="Received messages:"
+        android:text="Received packets:"
         android:textStyle="bold"
         android:textSize="20sp"
         android:padding="5dp"/>
@@ -84,7 +94,7 @@
         android:id="@+id/list_recv_msg"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/txt_vw_recv_msg"
+        app:layout_constraintTop_toBottomOf="@id/txt_vw_recv_pkt"
         app:layout_constraintLeft_toLeftOf="@id/view_b"
         app:layout_constraintRight_toRightOf="@id/view_b"
         app:layout_constraintBottom_toBottomOf="@id/view_b"/>
@@ -97,7 +107,7 @@
         app:layout_constraintTop_toTopOf="@id/view_c"
         app:layout_constraintLeft_toLeftOf="@id/view_c"
         app:layout_constraintRight_toRightOf="@id/view_c"
-        android:text="Sent messages:"
+        android:text="Sent packets:"
         android:textStyle="bold"
         android:textSize="20sp"
         android:padding="5dp"/>

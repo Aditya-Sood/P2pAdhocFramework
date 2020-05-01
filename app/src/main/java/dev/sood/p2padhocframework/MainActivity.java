@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
@@ -39,7 +38,7 @@ public class MainActivity extends AppCompatActivity implements
 
     private ArrayAdapter<String> adapterRecMsg, adapterSentMsg;
 
-    private EditText edtTextAddMssg;
+    private EditText edtTextAddMssg, edtTextDestination;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,7 +60,7 @@ public class MainActivity extends AppCompatActivity implements
         listRecvMsg.setAdapter(adapterRecMsg);
         listSentMsg.setAdapter(adapterSentMsg);
 
-        Button btnDiscoverMessages = findViewById(R.id.btn_discover_msg);
+        Button btnDiscoverMessages = findViewById(R.id.btn_discover_pkt);
         btnDiscoverMessages.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -72,18 +71,21 @@ public class MainActivity extends AppCompatActivity implements
 
         Button btnQueueMsg = findViewById(R.id.btn_queue_msg);
         edtTextAddMssg = findViewById(R.id.edt_txt_message);
+        edtTextDestination = findViewById(R.id.edt_txt_destination);
         btnQueueMsg.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 //                Toast.makeText(MainActivity.this, edtTextAddMssg.getText(), Toast.LENGTH_SHORT).show();
+                String destination = edtTextDestination.getText().toString();
                 String message = edtTextAddMssg.getText().toString();
-                wifiDirectManager.addMessageToBroadcastQueue(msgCount, message);
+                wifiDirectManager.addMessageToBroadcastQueue(msgCount, destination, message);
                 msgCount++;
+                edtTextDestination.setText("");
                 edtTextAddMssg.setText("");
             }
         });
 
-        Button btnBroadcast = findViewById(R.id.btn_broadcast);
+        Button btnBroadcast = findViewById(R.id.btn_send_pkt);
         btnBroadcast.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
