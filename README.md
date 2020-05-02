@@ -24,7 +24,7 @@ Steps in using the framework:
 
 (Both these operations can be performed in the `onResume()` phase, or atmost during the `onCreate()` phase)
 
-4. Device is ready to participate in the network:
+3. Device is ready to participate in the network:
     * Queue messages with the `addMessageToBroadcastQueue()` method, and transmit them to peers using the `broadcastPackets()` method. (Messages can be broadcasted or sent to a particular destination.)
     * Discover messages from peer devices using the `discoverPeerPackets()` method
 
